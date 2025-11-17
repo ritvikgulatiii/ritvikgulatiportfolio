@@ -1,0 +1,264 @@
+<!--
+Simple Game-Style Portfolio
+Files included below in this single document for easy copy/paste:
+- index.html (complete static site, single-file)
+- projects.json (sample content file)
+- assets/ (suggested folder structure)
+
+How to use: create a repo, paste index.html into the repo root, add projects.json and an assets/ folder, then deploy to GitHub Pages / Netlify.
+-->
+
+========================
+FILE: index.html
+========================
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Ritvik Gulati — Mission Select</title>
+
+  <!-- Tailwind CDN (no build) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Howler for tiny SFX -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js"></script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Press+Start+2P&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg:#0b1020; --panel:#0f1724; --muted:#94a3b8; --accent:#7c3aed;
+    }
+    html,body{background:linear-gradient(180deg,var(--bg),#07070b);}
+    .game-cursor { cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><circle cx="6" cy="6" r="5" fill="%23ffffff"/></svg>') 6 6, auto; }
+
+    .pixel { font-family: 'Press Start 2P', monospace; }
+
+    /* basic but pleasant card hover */
+    .mission-card{ transition: transform .18s ease, box-shadow .18s ease; }
+    .mission-card:hover{ transform: translateY(-6px) scale(1.02); box-shadow: 0 10px 30px rgba(124,58,237,0.12); }
+
+    /* modal entrance */
+    .modal-enter{ opacity:0; transform: translateY(8px); }
+    .modal-enter.modal-enter-active{ opacity:1; transform:none; transition: all .22s ease; }
+
+    /* small responsive niceties */
+    @media (max-width:640px){ .desktop-only{ display:none; } }
+  </style>
+</head>
+<body class="game-cursor text-slate-100 min-h-screen antialiased font-inter">
+
+  <main class="max-w-4xl mx-auto p-6">
+
+    <!-- Header / Start Menu -->
+    <header class="text-center mt-10">
+      <h1 class="text-4xl md:text-5xl font-extrabold tracking-wider pixel">Ritvik Gulati</h1>
+      <p class="text-slate-400 mt-2">Creative • Scriptwriter • Campaigns</p>
+
+      <div class="mt-6 inline-flex flex-col items-center gap-3">
+        <button id="startBtn" class="px-6 py-3 bg-transparent border border-slate-700 rounded-lg hover:bg-slate-800 transition">▶ Start</button>
+        <nav class="mt-2 text-sm text-slate-400">
+          <button id="navProjects" class="mr-3 hover:underline">Projects</button>
+          <button id="navAbout" class="mr-3 hover:underline">About</button>
+          <button id="navContact" class="hover:underline">Contact</button>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Missions / Projects (hidden until start or when Projects clicked) -->
+    <section id="missions" class="mt-10 hidden">
+      <h2 class="text-2xl font-semibold mb-4">Mission Select</h2>
+      <div id="missionsGrid" class="grid gap-4 md:grid-cols-2"></div>
+    </section>
+
+    <!-- About -->
+    <section id="about" class="mt-10 hidden">
+      <h2 class="text-2xl font-semibold mb-4">Character Sheet</h2>
+      <div class="bg-slate-800 p-5 rounded-lg border border-slate-700">
+        <div class="md:flex md:gap-6">
+          <div class="w-32 h-32 bg-slate-700 rounded-md flex items-center justify-center text-xl">👋</div>
+          <div>
+            <h3 class="text-xl font-bold">Ritvik Gulati</h3>
+            <p class="text-slate-300 mt-2">Creative lead and writer. I build playful concepts, memorable hooks, and short-form video scripts that drive engagement.</p>
+            <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
+              <div><strong>Class:</strong> Creative / Writer</div>
+              <div><strong>XP:</strong> 4+ years</div>
+              <div><strong>Strengths:</strong> Concepting, Scripts</div>
+              <div><strong>Toolkit:</strong> Premiere, Figma, Notion</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Contact -->
+    <section id="contact" class="mt-10 hidden">
+      <h2 class="text-2xl font-semibold mb-4">Contact</h2>
+      <div class="bg-slate-800 p-5 rounded-lg border border-slate-700">
+        <p class="text-slate-300">Email: <a id="emailLink" href="mailto:youremail@example.com" class="text-indigo-300 hover:underline">youremail@example.com</a></p>
+        <p class="mt-2 text-slate-300">Book a call: <a id="calLink" href="https://calendly.com/yourcalendly" target="_blank" class="text-indigo-300 hover:underline">Calendly</a></p>
+        <div class="mt-4 text-sm text-slate-400">Download: <a id="cvLink" href="assets/Ritvik_Gulati_CV.pdf" class="text-indigo-300 hover:underline">Resume (PDF)</a></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal for Project Details -->
+  <div id="modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-6 z-40">
+    <div id="modalCard" class="bg-gray-900 rounded-lg max-w-3xl w-full p-6 border border-slate-700">
+      <div class="flex justify-between items-start">
+        <h3 id="modalTitle" class="text-xl font-bold"></h3>
+        <button id="closeModal" class="text-sm px-3 py-1 bg-slate-800 rounded">Close</button>
+      </div>
+      <div id="modalBody" class="mt-4 text-slate-300"></div>
+    </div>
+  </div>
+
+  <script>
+  /* ---------- tiny hover SFX (Howler) ---------- */
+  try {
+    const hoverSfx = new Howl({ src: ['https://assets.mixkit.co/sfx/preview/mixkit-fast-finger-snap-1717.mp3'] });
+    document.addEventListener('mouseover', (e) => {
+      if (e.target.closest('.mission-card') || e.target.id === 'startBtn') hoverSfx.play();
+    });
+  } catch(e){ console.warn('SFX unavailable', e); }
+
+  /* ---------- small SPA logic ---------- */
+  const missionsEl = document.getElementById('missions');
+  const aboutEl = document.getElementById('about');
+  const contactEl = document.getElementById('contact');
+  const startBtn = document.getElementById('startBtn');
+  const navProjects = document.getElementById('navProjects');
+  const navAbout = document.getElementById('navAbout');
+  const navContact = document.getElementById('navContact');
+  const missionsGrid = document.getElementById('missionsGrid');
+  const modal = document.getElementById('modal');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalBody = document.getElementById('modalBody');
+  const closeModal = document.getElementById('closeModal');
+
+  function hideAll() {
+    missionsEl.classList.add('hidden'); aboutEl.classList.add('hidden'); contactEl.classList.add('hidden');
+  }
+
+  startBtn.onclick = () => { hideAll(); missionsEl.classList.remove('hidden'); window.scrollTo({ top: missionsEl.offsetTop - 40, behavior: 'smooth' }); }
+  navProjects.onclick = () => { hideAll(); missionsEl.classList.remove('hidden'); }
+  navAbout.onclick = () => { hideAll(); aboutEl.classList.remove('hidden'); window.scrollTo({ top: aboutEl.offsetTop - 40, behavior: 'smooth' }); }
+  navContact.onclick = () => { hideAll(); contactEl.classList.remove('hidden'); window.scrollTo({ top: contactEl.offsetTop - 40, behavior: 'smooth' }); }
+
+  /* ---------- load projects from JSON ---------- */
+  async function loadMissions(){
+    try{
+      const res = await fetch('projects.json');
+      const data = await res.json();
+      missionsGrid.innerHTML = data.map(p => `\
+        <article class="mission-card p-4 bg-slate-800 rounded-lg border border-slate-700 hover:scale-[1.02] transition cursor-pointer" data-id="${p.id}">\
+          <div class="flex justify-between items-start">\
+            <div>\
+              <h3 class="font-bold">${p.title}</h3>\
+              <p class="text-slate-400 text-sm mt-1">${p.brief}</p>\
+              <p class="text-slate-300 text-xs mt-2"><strong>Role:</strong> ${p.role}</p>\
+            </div>\
+            <div class="text-xs text-green-400">${p.status || 'COMPLETED ✓'}</div>\
+          </div>\
+        </article>\
+      `).join('');
+
+      // attach click listeners
+      document.querySelectorAll('.mission-card').forEach(card => {
+        card.addEventListener('click', async () => {
+          const id = card.dataset.id;
+          const item = data.find(x=>x.id===id);
+          if(!item) return;
+          modalTitle.innerText = item.title;
+          // build modal body
+          let body = `<p class="text-slate-300">${item.describe}</p>`;
+          body += `<div class=\"mt-4 grid md:grid-cols-2 gap-4\">`;
+          if(item.image) body += `<div class=\"bg-slate-800 rounded\"><img src=\"${item.image}\" alt=\"${item.title}\" class=\"w-full rounded\"></div>`;
+          if(item.video) body += `<div class=\"aspect-video\"><iframe src=\"${item.video}\" frameborder=\"0\" allowfullscreen class=\"w-full h-full\"></iframe></div>`;
+          body += `</div>`;
+          body += `<div class=\"mt-4 text-sm text-slate-400\"><strong>Outcome:</strong> ${item.outcome || '—'}</div>`;
+          body += `<div class=\"mt-2 text-sm text-slate-400\"><strong>My role:</strong> ${item.role}</div>`;
+          modalBody.innerHTML = body;
+          modal.classList.remove('hidden');
+        });
+      });
+
+    }catch(err){ console.error('Load projects failed', err); missionsGrid.innerHTML = '<div class="text-slate-400">Could not load projects.json (make sure it exists).</div>'; }
+  }
+
+  closeModal.onclick = () => { modal.classList.add('hidden'); }
+
+  // start
+  loadMissions();
+  </script>
+</body>
+</html>
+
+
+========================
+FILE: projects.json (sample)
+========================
+
+[
+  {
+    "id": "p1",
+    "title": "Mission 01 — Bee Club Launch",
+    "brief": "Launch film + teaser concept for Team Vitality.",
+    "describe": "A short case study: concept, scripting, assets and the launch plan.",
+    "role": "Concept & Script",
+    "outcome": "Teaser received 400k views in first week",
+    "image": "assets/images/beeclub.jpg",
+    "video": "https://www.youtube.com/embed/VIDEO_ID"
+  },
+  {
+    "id": "p2",
+    "title": "Mission 02 — Vi Cloud Games - Xyaa",
+    "brief": "Playable demo + Script for short-form video.",
+    "describe": "Concepting and scriptwriting for influencer-led playthroughs.",
+    "role": "Script, Concept",
+    "outcome": "Strong engagement on YT shorts",
+    "image": "assets/images/xyaa.jpg",
+    "video": "https://www.youtube.com/embed/VIDEO_ID"
+  }
+]
+
+
+========================
+ASSETS (suggested structure)
+========================
+
+assets/
+  images/
+    beeclub.jpg
+    xyaa.jpg
+  sfx/
+    hover.mp3
+  Ritvik_Gulati_CV.pdf
+
+
+========================
+DEPLOY (quick)
+========================
+
+Option A — GitHub Pages (static):
+1. Create a repo (e.g. `yourname.github.io`) and push index.html, projects.json, and the assets/ folder.
+2. In GitHub repo Settings -> Pages -> choose branch `main` and folder `/ (root)` -> Save.
+3. Visit https://yourusername.github.io/yourrepo/ (or https://yourusername.github.io if repo named that)
+
+Option B — Netlify / Vercel:
+1. Create an account, connect your GitHub repo, and deploy; they detect static sites automatically.
+
+
+========================
+EDITING NOTES & NEXT STEPS
+========================
+- Replace email link & Calendly in the Contact section.
+- Fill projects.json with your real projects: `id`, `title`, `brief`, `describe`, `role`, `outcome`, `image` (path), and `video` (YouTube embed URL).
+- Replace placeholder images in `assets/images`.
+- If you want a different font or palette, adjust the CSS variables at the top of index.html.
+- If you want me to populate projects.json with 6 of your projects (I can write the copy + structure), tell me the 6 projects and I’ll add them.
+
+-- End of code file --
